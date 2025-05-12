@@ -1,3 +1,4 @@
+from datetime import datetime
 import streamlit as st
 import boto3
 import json
@@ -38,10 +39,12 @@ def get_metadata(image_key):
     except s3.exceptions.ClientError:
         return {"tags": []}, meta_key
 
-def update_metadata(meta_key, tags):
+def update_metadata(meta_key, filename, tags):
     metadata = {
-        "tags": [tag.strip() for tag in tags.split(",")]
-    }
+            "filename": filename,
+            "tags": [tag.strip() for tag in tags.split(",")],
+            "uploaded_at": datetime.utcnow().isoformat()
+        }
     s3.put_object(
         Bucket=BUCKET,
         Key=meta_key,
@@ -83,7 +86,8 @@ with st.sidebar:
         # Extract unique extensions from the image list
         st.session_state.extensions = list(set(os.path.splitext(img)[1].lower() for img in all_images if "." in img))
     
-    selected_extension = st.selectbox("Filter by Extension", ["All"] + st.session_state.extensions)
+    selected_extension = st.selectbox("Filter by Extension", ["All"] + st.session_state.extensions,
+                                      on_change=lambda: st.session_state.update({'index':0}))
 
     if selected_extension != "All":
         images = [img for img in all_images if img.lower().endswith(selected_extension)]
@@ -118,7 +122,7 @@ if images:
     tags = st.text_input("Tags (comma-separated)", value=", ".join(metadata.get("tags", [])))
 
     if st.button("Update Tags"):
-        update_metadata(meta_key, tags)
+        update_metadata(meta_key, filename=metadata.get('filename', os.path.splitext(image_key)[0]), tags=tags)
         st.success("Tags updated!")
 
     col1, col2, col3 = st.columns(3)
