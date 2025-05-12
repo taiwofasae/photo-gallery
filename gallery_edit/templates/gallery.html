@@ -8,7 +8,7 @@
     <button type="submit">Search</button>
   </form>
   <hr>
-  {% for url, tags, filename in images %}
+  {% for url, tags, filename, is_heic in images %}
     <div style="display: flex; align-items: center;">
       <img src="{{ url }}" width="500" style="margin-right: 10px;">
       <form class="tag-update-form" data-filename="{{ filename }}">
@@ -17,6 +17,11 @@
         <button type="button" class="submit-btn">update</button>
       </form>
       {{ filename }}
+      {% if is_heic %}
+      <form class="heic-convert-form" data-filename="{{ filename }}">
+        <button type="button" class="submit-btn">CONVERT</button>
+      </form>
+      {% endif %}
     </div>
     <hr>
   {% endfor %}
@@ -39,6 +44,26 @@
                 },
                 error: function() {
                   alert('An error occurred while updating tags.');
+                }
+              });
+              
+              return false; // Prevent page reload
+          });
+
+          $('.heic-convert-form .submit-btn').on('click', function() {
+              var form = $(this).closest('.heic-convert-form');
+              var filename = form.data('filename');
+              
+              $.ajax({
+                url: '/heic', // Replace with your server endpoint
+                method: 'POST',
+                data: { filename: filename },
+                success: function(response) {
+                  alert('heic converted successfully!'); // Replace with your desired action
+                  form.find('.submit-btn').disabled();
+                },
+                error: function() {
+                  alert('An error occurred converting heic.');
                 }
               });
               

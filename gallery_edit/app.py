@@ -15,6 +15,39 @@ s3 = boto3.client('s3')
 BUCKET = os.getenv("S3_BUCKET")
 BUCKET_FOLDER = os.getenv("BUCKET_FOLDER")
 
+@app.route("/heic", methods=["POST"])
+def convert_heic():
+    if request.method == "POST":
+        image_key = request.form["heic_key"]
+        # handle iphone HEIC formats
+        if image_key.lower().endswith('heic'):
+            print("object is of heic ext. Converting to png...")
+            new_image_key = f"{os.path.splitext(image_key)[0]}.png"
+            png_exists = False
+            # check if png exists
+            try:
+                s3.head_object(Bucket=BUCKET, Key=new_image_key)
+                png_exists = True
+            except s3.exceptions.ClientError as e:
+                if e.response['Error']['Code'] == "404":
+                    pass
+
+            if png_exists:
+                print('png exists. Skipping...')
+            else:
+                print('png does not exist. Converting from heic to png...')
+                convert_heic_from_s3(
+                    bucket=BUCKET,
+                    key=image_key,
+                    output_format="PNG",
+                    save_to_s3=True,
+                    output_bucket=BUCKET,
+                    output_key=new_image_key
+                )
+                image_key = new_image_key
+            return {"OK": "Updated"}, 200
+            
+        return {"error": "Something's wrong"}, 400
 
 @app.route("/", methods=["GET"])
 def gallery():
@@ -30,33 +63,10 @@ def gallery():
                 # Skip directories
                 continue
 
+            is_heic = False
             # handle iphone HEIC formats
             if image_key.lower().endswith('heic'):
-                print("object is of heic ext. Converting to png...")
-                new_image_key = f"{os.path.splitext(image_key)[0]}.png"
-                png_exists = False
-                # check if png exists
-                try:
-                    s3.head_object(Bucket=BUCKET, Key=new_image_key)
-                    png_exists = True
-                except s3.exceptions.ClientError as e:
-                    if e.response['Error']['Code'] == "404":
-                        pass
-                if png_exists:
-                    print('png exists. Skipping...')
-                    continue
-
-                print('png does not exist. Converting from heic to png...')
-                convert_heic_from_s3(
-                    bucket=BUCKET,
-                    key=image_key,
-                    output_format="PNG",
-                    save_to_s3=True,
-                    output_bucket=BUCKET,
-                    output_key=new_image_key
-                )
-                image_key = new_image_key
-                
+                is_heic = True
 
             image_signed_path = f"https://{BUCKET}.s3.us-east-1.amazonaws.com/{image_key}"
             image_filename = image_key.split(f"{BUCKET_FOLDER}images/")[-1]
@@ -66,10 +76,10 @@ def gallery():
                 obj = s3.get_object(Bucket=BUCKET, Key=metadata_key)
                 metadata = json.loads(obj["Body"].read())
                 if not search or search in metadata["tags"]:
-                    image_entries.append((image_signed_path, metadata["tags"], image_filename))
+                    image_entries.append((image_signed_path, metadata["tags"], image_filename, is_heic))
             except s3.exceptions.NoSuchKey as e:
                 # TODO: consider excluding images with no metadata. Temporarily used as forcing metadata declaration
-                image_entries.append((image_signed_path, [], image_filename))
+                image_entries.append((image_signed_path, [], image_filename, is_heic))
 
     return render_template("gallery.html", images=image_entries)
 
