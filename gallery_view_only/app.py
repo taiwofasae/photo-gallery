@@ -15,7 +15,7 @@ def gallery():
     search = request.args.get("search", "").lower()
     image_entries = []
 
-    result = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{BUCKET_FOLDER}/metadata/")
+    result = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{BUCKET_FOLDER}metadata/")
     if "Contents" in result:
         for item in result["Contents"]:
             metadata_file = item["Key"]
