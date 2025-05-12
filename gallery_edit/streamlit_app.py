@@ -25,14 +25,14 @@ s3 = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
 
-def list_images():
-    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{BUCKET_FOLDER}images/")
+def list_images(bucket_folder):
+    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{bucket_folder}images/")
     return [obj["Key"] for obj in response.get("Contents", [])]
     # return [obj["Key"] for obj in response.get("Contents", []) if obj["Key"].lower().endswith((".jpg", ".jpeg", ".png"))]
 
-def get_metadata(image_key):
+def get_metadata(bucket_folder, image_key):
     base_name = os.path.splitext(os.path.basename(image_key))[0]
-    meta_key = f"{BUCKET_FOLDER}metadata/{base_name}.json"
+    meta_key = f"{bucket_folder}metadata/{base_name}.json"
     try:
         meta_obj = s3.get_object(Bucket=BUCKET, Key=meta_key)
         return json.loads(meta_obj["Body"].read()), meta_key
@@ -61,23 +61,34 @@ def key_exists(s3_key):
             pass
     return False
 
+# Set Streamlit to use a wide layout
+st.set_page_config(layout="wide")
+
 # Streamlit UI
 st.title("📸 S3 Image Gallery")
 
+
+
+if 'bucket_folder' not in st.session_state:
+    st.session_state.bucket_folder = BUCKET_FOLDER
+
+bucket_folder = st.session_state.bucket_folder
+
 if "all_images" not in st.session_state:
-    st.session_state.all_images = list_images()
+    st.session_state.all_images = list_images(bucket_folder)
+
+all_images = st.session_state.all_images
+images = all_images
 
 if "index" not in st.session_state:
     st.session_state.index = 0
 
-all_images = st.session_state.all_images
-
-images = all_images
 
 # Sidebar for refreshing the list of images
 with st.sidebar:
+    st.session_state.bucket_folder = st.text_input('Bucket folder', value=bucket_folder)
     if st.button("Refresh Image List"):
-        st.session_state.all_images = list_images()
+        st.session_state.all_images = list_images(bucket_folder)
         st.session_state.index = 0
 
 # Sidebar for filtering by extension
@@ -97,9 +108,9 @@ with st.sidebar:
 if images:
     image_key = images[st.session_state.index]
     st.write(image_key)
-
+    image_filename = image_key.split(f'{bucket_folder}images/')[-1]
+    
     if image_key.lower().endswith('heic'):
-        st.write('HEIC image file.')
         png_image_key = f"{os.path.splitext(image_key)[0]}.png"
         if st.button('Convert to png'):
             with st.spinner('converting...'):
@@ -111,28 +122,39 @@ if images:
                         output_bucket=BUCKET,
                         output_key=png_image_key
                     )
-                st.write('conversion done.')
+                st.success('conversion done.')
         if key_exists(png_image_key):
             st.write(f'PNG key exists: {png_image_key}')
 
-    url = s3.generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": image_key}, ExpiresIn=3600)
-    st.image(url, use_container_width =True)
+    col1, col2 = st.columns([4,7])
 
-    metadata, meta_key = get_metadata(image_key)
-    tags = st.text_input("Tags (comma-separated)", value=", ".join(metadata.get("tags", [])))
-
-    if st.button("Update Tags"):
-        update_metadata(meta_key, filename=metadata.get('filename', os.path.splitext(image_key)[0]), tags=tags)
-        st.success("Tags updated!")
-
-    col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("Previous") and st.session_state.index > 0:
-            st.session_state.index -= 1
+        url = s3.generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": image_key}, ExpiresIn=3600)
+        st.image(url)
+
     with col2:
-        st.write(f"{st.session_state.index + 1} of {len(images)}")
-    with col3:
-        if st.button("Next") and st.session_state.index < len(images) - 1:
-            st.session_state.index += 1
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("Previous") and st.session_state.index > 0:
+                st.session_state.index -= 1
+                st.rerun()
+        with col2:
+            st.write(f"{st.session_state.index + 1} of {len(images)}")
+        with col3:
+            if st.button("Next") and st.session_state.index < len(images) - 1:
+                st.session_state.index += 1
+                st.rerun()
+                
+        metadata, meta_key = get_metadata(bucket_folder, image_key)
+        st.write('**Metadata:**')
+        st.json(metadata)
+        tags = st.text_input("Tags (comma-separated)", value=", ".join(metadata.get("tags", [])))
+
+        if st.button("Update Tags"):
+            update_metadata(meta_key, filename=metadata.get('filename', image_filename), tags=tags)
+            st.success("Tags updated!")
+            st.rerun()
+
+        
 else:
     st.write("No images found in the S3 bucket.")
