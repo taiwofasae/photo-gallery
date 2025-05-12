@@ -133,13 +133,19 @@ if images:
         st.image(url)
 
     with col2:
+        with st.columns([4,1,5])[1]:
+            input_index = st.number_input(f'of {len(images)}', min_value=1, 
+                                        value=(st.session_state.index+1),
+                                        label_visibility='hidden')
+            if input_index:
+                st.session_state.index = int(input_index)-1
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Previous") and st.session_state.index > 0:
                 st.session_state.index -= 1
                 st.rerun()
         with col2:
-            st.write(f"{st.session_state.index + 1} of {len(images)}")
+                st.write(f"{st.session_state.index + 1} of {len(images)}")
         with col3:
             if st.button("Next") and st.session_state.index < len(images) - 1:
                 st.session_state.index += 1
