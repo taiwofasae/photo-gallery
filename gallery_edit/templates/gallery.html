@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head><title>Image Gallery</title></head>
+<body>
+  <h2>Search Images by Tag</h2>
+  <form method="GET">
+    <input type="text" name="search" placeholder="e.g. beach">
+    <button type="submit">Search</button>
+  </form>
+  <hr>
+  {% for url, tags, filename in images %}
+    <div style="display: flex; align-items: center;">
+      <img src="{{ url }}" width="500" style="margin-right: 10px;">
+      <form class="tag-update-form" data-filename="{{ filename }}">
+        Tags: <span class="tags">{{ tags }}</span> <br> <br> <br>
+        <input type="text" name="tags" placeholder="e.g. beach, dancing" value="{{ ', '.join(tags) }}"/>
+        <button type="button" class="submit-btn">update</button>
+      </form>
+      {{ filename }}
+    </div>
+    <hr>
+  {% endfor %}
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+      <script>
+        $(document).ready(function() {
+          $('.tag-update-form .submit-btn').on('click', function() {
+              var form = $(this).closest('.tag-update-form');
+              var tags = form.find('input[name="tags"]').val();
+              var filename = form.data('filename');
+              
+              $.ajax({
+                url: '/update', // Replace with your server endpoint
+                method: 'POST',
+                data: { tags: tags, filename: filename },
+                success: function(response) {
+                  alert('Tags updated successfully!'); // Replace with your desired action
+                  form.find('.tags').text(tags.split())
+                },
+                error: function() {
+                  alert('An error occurred while updating tags.');
+                }
+              });
+              
+              return false; // Prevent page reload
+          });
+        });
+      </script>
+</body>
+</html>

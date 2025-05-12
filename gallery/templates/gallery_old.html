@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Image Gallery</title></head>
+<body>
+  <h2>Search Images by Tag</h2>
+  <form method="GET">
+    <input type="text" name="search" placeholder="e.g. beach">
+    <button type="submit">Search</button>
+  </form>
+  <hr>
+  {% for url, tags in images %}
+    <div>
+      <img src="{{ url }}" width="200"><br>
+      Tags: {{ tags }}
+    </div>
+    <hr>
+  {% endfor %}
+</body>
+</html>

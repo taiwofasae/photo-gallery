@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app1:
+    build: ./uploader
+    ports:
+      - "8001:80"
+    restart: always
+    env_file: .env
+
+  app2:
+    build: ./gallery_view_only
+    ports:
+      - "8002:80"
+    restart: always
+    env_file: .env
+
+  app3:
+    build: ./gallery_edit
+    ports:
+      - "8003:80"
+    restart: always
+    env_file: .env
+
+  app4:
+    build: ./gallery
+    ports:
+      - "8004:80"
+    restart: always
+    env_file: .env
