@@ -21,14 +21,16 @@ def gallery():
             metadata_file = item["Key"]
             obj = s3.get_object(Bucket=BUCKET, Key=metadata_file)
             metadata = json.loads(obj["Body"].read())
+            filename = metadata['filename']
             # search takes only the first keyword
             if not search or search.split()[0].split(',')[0] in metadata["tags"]:
                 image_url = s3.generate_presigned_url(
                     'get_object',
-                    Params={'Bucket': BUCKET, 'Key': f"{BUCKET_FOLDER}images/{metadata['filename']}"},
+                    Params={'Bucket': BUCKET, 'Key': f"{BUCKET_FOLDER}images/{filename}"},
                     ExpiresIn=3600
                 )
-                image_entries.append(image_url)
+                thumbnail_url = f"https://{BUCKET}.s3.us-east-1.amazonaws.com/{BUCKET_FOLDER}thumbnails/{filename}"
+                image_entries.append((image_url, thumbnail_url))
 
     return render_template("gallery.html", images=image_entries, search=search)
 

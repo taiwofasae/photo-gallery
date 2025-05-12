@@ -13,8 +13,8 @@
   </form>
   <hr>
   <div id="lightgallery">
-    {% for url in images %}
-    <a href="{{ url }}"><img src="{{ url }}"  width="200"/></a>
+    {% for url, thumbnail_url in images %}
+    <a href="{{ url }}"><img src="{{ thumbnail_url }}"  width="200"/></a>
     {% endfor %}
   </div>
   <script>

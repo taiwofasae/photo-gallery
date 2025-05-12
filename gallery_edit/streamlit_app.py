@@ -5,7 +5,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-from utils import convert_heic_from_s3
+from utils import convert_heic_from_s3, generate_thumbnail
 
 # Load environment variables
 load_dotenv()
@@ -88,6 +88,7 @@ if "index" not in st.session_state:
 with st.sidebar:
     st.session_state.bucket_folder = st.text_input('Bucket folder', value=bucket_folder)
     if st.button("Refresh Image List"):
+        st.session_state.all_images = []
         st.session_state.all_images = list_images(bucket_folder)
         st.session_state.index = 0
 
@@ -102,6 +103,54 @@ with st.sidebar:
 
     if selected_extension != "All":
         images = [img for img in all_images if img.lower().endswith(selected_extension)]
+
+    if st.button("Convert all HEIC to PNG"):
+        n_images = len(images)
+        progress_bar = st.progress(0, 'Conversion')
+        status_text = st.empty()
+        with st.spinner(f'converting {n_images} images...'):
+            for index, image_key in enumerate(images):
+                status_text.text(f"{index+1}/{n_images}...")
+                progress_bar.progress(index/n_images)
+                if image_key.endswith('/'):
+                    continue
+                if image_key.lower().endswith('heic'):
+                    png_image_key = f"{os.path.splitext(image_key)[0]}.png"
+                    if not key_exists(png_image_key):
+                        convert_heic_from_s3(
+                                bucket=BUCKET,
+                                key=image_key,
+                                output_format="PNG",
+                                save_to_s3=True,
+                                output_bucket=BUCKET,
+                                output_key=png_image_key
+                            )
+                    else:
+                        print(f'file exists: {png_image_key}')
+
+    if st.button("Generate thumbnails of all PNG"):
+        n_images = len(images)
+        progress_bar = st.progress(0, 'thumbnails')
+        status_text = st.empty()
+        with st.spinner(f'converting {n_images} images...'):
+            for index, image_key in enumerate(images):
+                status_text.text(f"{index+1}/{n_images}...")
+                progress_bar.progress(index/n_images)
+                if image_key.endswith('/'):
+                    continue
+                if image_key.lower().endswith('png'):
+                    image_filename = image_key.split(f'{bucket_folder}images/')[-1]
+                    thumbnail_image_key = f"{bucket_folder}thumbnails/{os.path.splitext(image_filename)[0]}.png"
+                    if not key_exists(thumbnail_image_key):
+                        generate_thumbnail(
+                            source_bucket=BUCKET,
+                            source_key=image_key,
+                            target_bucket=BUCKET,
+                            target_key=thumbnail_image_key,
+                            size=(300, 300)
+                        )
+                    else:
+                        print(f'thumbnail exists: {thumbnail_image_key}')
 
 
 
