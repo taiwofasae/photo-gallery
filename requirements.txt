@@ -6,3 +6,4 @@ pillow==11.2.1
 pillow-heif==0.22.0
 gunicorn==23.0.0
 streamlit==1.45.0
+Flask-caching==2.3.1

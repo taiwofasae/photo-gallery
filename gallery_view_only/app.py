@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 import boto3
 import json
 from dotenv import load_dotenv
 import os
+
+from flask_caching import Cache
 load_dotenv()
 
 app = Flask(__name__)
@@ -10,8 +12,20 @@ s3 = boto3.client('s3')
 BUCKET = os.getenv("S3_BUCKET")
 BUCKET_FOLDER = os.getenv("BUCKET_FOLDER")
 
+app.config["CACHE_TYPE"] = "SimpleCache"
+app.config["CACHE_DEFAULT_TIMEOUT"] = 300
+cache = Cache(app)
+
+@app.route('/clear-cache', methods=["POST"])
+def clear_cache():
+    cache.clear()
+    return jsonify({"status": "success", "message": "Cache cleared."})
+
+
 @app.route("/", methods=["GET"])
+@cache.cached(query_string=True)
 def gallery():
+    print('cache miss!')
     search = request.args.get("search", "").lower()
     image_entries = []
 
