@@ -17,6 +17,10 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET = os.getenv("S3_BUCKET")
 BUCKET_FOLDER = os.getenv("BUCKET_FOLDER")
 
+IMAGES_FOLDER = 'images/'
+THUMBNAIL_FOLDER = 'thumbnails/'
+METADATA_FOLDER = 'metadata/'
+
 # S3 client
 s3 = boto3.client(
     "s3",
@@ -25,14 +29,17 @@ s3 = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
 
+def extract_filename_from_s3key(s3key):
+    return os.path.splitext(os.path.basename(s3key))[0]
+
 def list_images(bucket_folder):
-    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{bucket_folder}images/")
+    response = s3.list_objects_v2(Bucket=BUCKET, Prefix=f"{bucket_folder}{IMAGES_FOLDER}")
     return [obj["Key"] for obj in response.get("Contents", [])]
     # return [obj["Key"] for obj in response.get("Contents", []) if obj["Key"].lower().endswith((".jpg", ".jpeg", ".png"))]
 
 def get_metadata(bucket_folder, image_key):
-    base_name = os.path.splitext(os.path.basename(image_key))[0]
-    meta_key = f"{bucket_folder}metadata/{base_name}.json"
+    filename = extract_filename_from_s3key(image_key)
+    meta_key = f"{bucket_folder}{METADATA_FOLDER}{filename}.json"
     try:
         meta_obj = s3.get_object(Bucket=BUCKET, Key=meta_key)
         return json.loads(meta_obj["Body"].read()), meta_key
@@ -104,6 +111,8 @@ with st.sidebar:
     if selected_extension != "All":
         images = [img for img in all_images if img.lower().endswith(selected_extension)]
 
+    st.markdown('---')
+
     if st.button("Convert all HEIC to PNG"):
         n_images = len(images)
         progress_bar = st.progress(0, 'Conversion')
@@ -113,6 +122,7 @@ with st.sidebar:
                 status_text.text(f"{index+1}/{n_images}...")
                 progress_bar.progress(index/n_images)
                 if image_key.endswith('/'):
+                    # skip folders
                     continue
                 if image_key.lower().endswith('heic'):
                     png_image_key = f"{os.path.splitext(image_key)[0]}.png"
@@ -127,7 +137,39 @@ with st.sidebar:
                             )
                     else:
                         print(f'file exists: {png_image_key}')
+    
+    st.markdown('---')
 
+    jpeg_path = st.text_input('JPEG path', value=f'{IMAGES_FOLDER}', key='jpeg-path')
+    # jpeg_quality = st.number_input('JPEG quality', value=95, key='jpeg-quality', step=1)
+    st.write(f'Full path: {bucket_folder}{jpeg_path}')
+    if st.button("Convert all HEIC to JPEG"):
+        n_images = len(images)
+        progress_bar = st.progress(0, 'Conversion')
+        status_text = st.empty()
+        with st.spinner(f'converting {n_images} images...'):
+            for index, image_key in enumerate(images):
+                status_text.text(f"{index+1}/{n_images}...")
+                progress_bar.progress(index/n_images)
+                if image_key.endswith('/'):
+                    continue
+                if image_key.lower().endswith('heic'):
+                    filename = extract_filename_from_s3key(image_key)
+                    jpeg_image_key = f"{bucket_folder}{jpeg_path}{filename}.jpeg"
+                    if not key_exists(jpeg_image_key):
+                        # print(f"saving to '{jpeg_image_key}'")
+                        convert_heic_from_s3(
+                                bucket=BUCKET,
+                                key=image_key,
+                                output_format="JPEG",
+                                save_to_s3=True,
+                                output_bucket=BUCKET,
+                                output_key=jpeg_image_key,
+                                # quality=jpeg_quality
+                            )
+                    else:
+                        print(f'file exists: {jpeg_image_key}')
+    st.markdown('---')
     if st.button("Generate thumbnails of all PNG"):
         n_images = len(images)
         progress_bar = st.progress(0, 'thumbnails')
@@ -139,8 +181,8 @@ with st.sidebar:
                 if image_key.endswith('/'):
                     continue
                 if image_key.lower().endswith('png'):
-                    image_filename = image_key.split(f'{bucket_folder}images/')[-1]
-                    thumbnail_image_key = f"{bucket_folder}thumbnails/{os.path.splitext(image_filename)[0]}.png"
+                    image_filename = extract_filename_from_s3key(image_key)
+                    thumbnail_image_key = f"{bucket_folder}{THUMBNAIL_FOLDER}{image_filename}.png"
                     if not key_exists(thumbnail_image_key):
                         generate_thumbnail(
                             source_bucket=BUCKET,
@@ -157,7 +199,7 @@ with st.sidebar:
 if images:
     image_key = images[st.session_state.index]
     st.write(image_key)
-    image_filename = image_key.split(f'{bucket_folder}images/')[-1]
+    image_filename = image_key.split(f'{bucket_folder}{IMAGES_FOLDER}')[-1]
     
     if image_key.lower().endswith('heic'):
         png_image_key = f"{os.path.splitext(image_key)[0]}.png"

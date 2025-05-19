@@ -8,7 +8,9 @@ register_heif_opener()
 
 s3 = boto3.client("s3")
 
-def convert_heic_from_s3(bucket, key, output_format="PNG", save_to_s3=False, output_bucket=None, output_key=None):
+def convert_heic_from_s3(bucket, key, output_format="PNG", 
+                         save_to_s3=False, output_bucket=None, output_key=None,
+                         quality=95):
     # Download S3 object into memory
     response = s3.get_object(Bucket=bucket, Key=key)
     heic_bytes = response['Body'].read()
@@ -20,7 +22,7 @@ def convert_heic_from_s3(bucket, key, output_format="PNG", save_to_s3=False, out
     output_buffer = BytesIO()
     if output_format.upper() == "JPEG":
         image = image.convert("RGB")
-        image.save(output_buffer, format="JPEG", quality=95, optimize=True)
+        image.save(output_buffer, format="JPEG", quality=quality, optimize=True)
     elif output_format.upper() == "PNG":
         image.save(output_buffer, format="PNG", optimize=True)
     else:
@@ -38,7 +40,8 @@ def convert_heic_from_s3(bucket, key, output_format="PNG", save_to_s3=False, out
         return output_buffer  # You can use this buffer to save locally or return as HTTP response
 
 
-def generate_thumbnail(source_bucket, source_key, target_bucket=None, target_key=None, size=(200, 200)):
+def generate_thumbnail(source_bucket, source_key, target_bucket=None, 
+                       target_key=None, size=(200, 200)):
     # Download image from S3
     response = s3.get_object(Bucket=source_bucket, Key=source_key)
     image_data = response['Body'].read()

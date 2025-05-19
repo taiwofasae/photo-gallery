@@ -22,6 +22,14 @@ services:
     restart: always
     env_file: .env
 
+  streamlit_app:
+    build: ./gallery_edit
+    ports:
+      - "8501:8501"
+    restart: always
+    env_file: .env
+    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+
   app4:
     build: ./gallery
     ports:
