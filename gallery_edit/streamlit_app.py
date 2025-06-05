@@ -84,11 +84,13 @@ bucket_folder = st.session_state.bucket_folder
 if "all_images" not in st.session_state:
     st.session_state.all_images = list_images(bucket_folder)
 
-all_images = st.session_state.all_images
-images = all_images
+images = st.session_state.all_images
 
 if "index" not in st.session_state:
     st.session_state.index = 0
+
+if "extensions" not in st.session_state:
+    st.session_state.extensions = []
 
 
 # Sidebar for refreshing the list of images
@@ -98,12 +100,13 @@ with st.sidebar:
         st.session_state.all_images = []
         st.session_state.all_images = list_images(bucket_folder)
         st.session_state.index = 0
+        st.rerun()
 
 # Sidebar for filtering by extension
 with st.sidebar:
-    if "extensions" not in st.session_state:
-        # Extract unique extensions from the image list
-        st.session_state.extensions = list(set(os.path.splitext(img)[1].lower() for img in all_images if "." in img))
+    all_images = st.session_state.all_images
+
+    st.session_state.extensions = list(set(os.path.splitext(img)[1].lower() for img in all_images if "." in img))
     
     selected_extension = st.selectbox("Filter by Extension", ["All"] + st.session_state.extensions,
                                       on_change=lambda: st.session_state.update({'index':0}))
